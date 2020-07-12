@@ -1278,7 +1278,7 @@ struct libusb_transfer * LIBUSB_CALL libusb_alloc_transfer(
 	itransfer->priv = ptr;
 	usbi_mutex_init(&itransfer->lock);
 	transfer = USBI_TRANSFER_TO_LIBUSB_TRANSFER(itransfer);
-	usbi_dbg("transfer %p", transfer);
+	usbi_dbg("alloc transfer %p", transfer);
 	return transfer;
 }
 
@@ -1486,7 +1486,7 @@ int API_EXPORTED libusb_submit_transfer(struct libusb_transfer *transfer)
 	struct libusb_context *ctx = TRANSFER_CTX(transfer);
 	int r;
 
-	usbi_dbg("transfer %p", transfer);
+	usbi_dbg("submit transfer %p", transfer);
 
 	/*
 	 * Important note on locking, this function takes / releases locks
@@ -1576,7 +1576,7 @@ int API_EXPORTED libusb_cancel_transfer(struct libusb_transfer *transfer)
 		LIBUSB_TRANSFER_TO_USBI_TRANSFER(transfer);
 	int r;
 
-	usbi_dbg("transfer %p", transfer );
+	usbi_dbg("cancel transfer %p", transfer );
 	usbi_mutex_lock(&itransfer->lock);
 	if (!(itransfer->state_flags & USBI_TRANSFER_IN_FLIGHT)
 			|| (itransfer->state_flags & USBI_TRANSFER_CANCELLING)) {

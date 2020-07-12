@@ -42,6 +42,13 @@ typedef SSIZE_T ssize_t;
 #include <sys/time.h>
 #endif
 #include <time.h>
+#include <android/log.h>
+
+#define LIBUSB_STRINGIFY(x) LIBUSB_STRINGIFY_PRIVATE(x)
+#define LIBUSB_STRINGIFY_PRIVATE(x) #x
+#define LOG_TAG    __FILE__ ":" LIBUSB_STRINGIFY(__LINE__)
+#define LOGI(...)  __android_log_print(ANDROID_LOG_INFO,LOG_TAG,__VA_ARGS__)
+#define LOGE(...)  __android_log_print(ANDROID_LOG_ERROR,LOG_TAG,__VA_ARGS__)
 
 #if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L)
 #define ZERO_SIZED_ARRAY		/* [] - valid C99 code */

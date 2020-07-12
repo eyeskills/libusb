@@ -356,6 +356,9 @@ static int op_init(struct libusb_context *ctx)
 
 	usbi_dbg("found usbfs at %s", usbfs_path);
 
+#ifdef __ANDROID__
+	max_iso_packet_len = 32768;
+#endif
 	if (!max_iso_packet_len) {
 		if (kernel_version_ge(&kversion, 5, 2, 0))
 			max_iso_packet_len = 98304;
@@ -414,6 +417,10 @@ static void op_exit(struct libusb_context *ctx)
 
 static int linux_scan_devices(struct libusb_context *ctx)
 {
+#if defined(__ANDROID_API__) && __ANDROID_API__ >= 18
+	/* Android 4.3 introduces SELinux - access denied to udev and usbfs */
+	return LIBUSB_SUCCESS;
+#else
 	int ret;
 
 	usbi_mutex_static_lock(&linux_hotplug_lock);
@@ -427,6 +434,7 @@ static int linux_scan_devices(struct libusb_context *ctx)
 	usbi_mutex_static_unlock(&linux_hotplug_lock);
 
 	return ret;
+#endif
 }
 
 static void op_hotplug_poll(void)
@@ -2031,6 +2039,7 @@ static int submit_iso_transfer(struct usbi_transfer *itransfer)
 
 		total_len += packet_len;
 	}
+	usbi_dbg("transfer->length: %d - total_len: %d - mipl:%d", transfer->length, total_len, max_iso_packet_len);
 
 	if (transfer->length < (int)total_len)
 		return LIBUSB_ERROR_INVALID_PARAM;
@@ -2038,7 +2047,7 @@ static int submit_iso_transfer(struct usbi_transfer *itransfer)
 	/* usbfs limits the number of iso packets per URB */
 	num_urbs = (num_packets + (MAX_ISO_PACKETS_PER_URB - 1)) / MAX_ISO_PACKETS_PER_URB;
 
-	usbi_dbg("need %d urbs for new transfer with length %d", num_urbs, transfer->length);
+	usbi_dbg("need %d urbs for new transfer with length %d with mipl:%d", num_urbs, transfer->length, max_iso_packet_len);
 
 	urbs = calloc(num_urbs, sizeof(*urbs));
 	if (!urbs)
@@ -2054,13 +2063,17 @@ static int submit_iso_transfer(struct usbi_transfer *itransfer)
 	num_packets_remaining = num_packets;
 	for (i = 0, j = 0; i < num_urbs; i++) {
 		int num_packets_in_urb = MIN(num_packets_remaining, MAX_ISO_PACKETS_PER_URB);
+		usbi_dbg("num_packets_in_urb=%d, num_packets_remaining=%d", num_packets_in_urb, num_packets_remaining);
 		struct usbfs_urb *urb;
 		size_t alloc_size;
 		int k;
 
 		alloc_size = sizeof(*urb)
 			+ (num_packets_in_urb * sizeof(struct usbfs_iso_packet_desc));
+		
+		usbi_dbg("calloc urb");
 		urb = calloc(1, alloc_size);
+		usbi_dbg("calloc urb: %p", urb);
 		if (!urb) {
 			free_iso_urbs(tpriv);
 			return LIBUSB_ERROR_NO_MEM;
@@ -2088,6 +2101,7 @@ static int submit_iso_transfer(struct usbi_transfer *itransfer)
 
 	/* submit URBs */
 	for (i = 0; i < num_urbs; i++) {
+		usbi_dbg("ioctl for urb %p", urbs[i]);
 		int r = ioctl(hpriv->fd, IOCTL_USBFS_SUBMITURB, urbs[i]);
 
 		if (r == 0)
@@ -2102,7 +2116,7 @@ static int submit_iso_transfer(struct usbi_transfer *itransfer)
 			usbi_warn(TRANSFER_CTX(transfer), "submiturb failed, iso packet length too large");
 			r = LIBUSB_ERROR_INVALID_PARAM;
 		} else {
-			usbi_err(TRANSFER_CTX(transfer), "submiturb failed, errno=%d", errno);
+			usbi_err(TRANSFER_CTX(transfer), "submiturb failed, errno=%d, err=%s", errno, strerror(errno));
 			r = LIBUSB_ERROR_IO;
 		}
 

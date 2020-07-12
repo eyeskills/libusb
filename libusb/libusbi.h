@@ -259,7 +259,8 @@ void usbi_log(struct libusb_context *ctx, enum libusb_log_level level,
 void usbi_log_v(struct libusb_context *ctx, enum libusb_log_level level,
 	const char *function, const char *format, va_list args) USBI_PRINTFLIKE(4, 0);
 
-#define _usbi_log(ctx, level, ...) usbi_log(ctx, level, __func__, __VA_ARGS__)
+//#define _usbi_log(ctx, level, ...) usbi_log(ctx, level, __func__, __VA_ARGS__)
+#define _usbi_log(ctx, level, ...) LOGI(#level ": " __VA_ARGS__)
 
 #define usbi_err(ctx, ...)	_usbi_log(ctx, LIBUSB_LOG_LEVEL_ERROR, __VA_ARGS__)
 #define usbi_warn(ctx, ...)	_usbi_log(ctx, LIBUSB_LOG_LEVEL_WARNING, __VA_ARGS__)
